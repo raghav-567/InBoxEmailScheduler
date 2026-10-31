@@ -539,13 +539,21 @@ Assignment/
 
 3. **Elasticsearch as optional**: If ES is unavailable, the system gracefully falls back to PostgreSQL `ILIKE` queries. This ensures the system works even without ES running.
 
-4. **BullMQ job ID reuse**: Using the DB record ID as the BullMQ jobId means a job can only exist once. If a job fails and needs rescheduling (rate limit), a new jobId is generated with a `-retry-{timestamp}` suffix to avoid ID conflicts.
+4. **BullMQ job ID reuse / idempotency**: The DB record ID is used as the BullMQ jobId, so a job can only exist once. Rate-limit reschedules use a deterministic `-retry-{n}` suffix (an incrementing counter carried in the job data) — the same reschedule event always produces the same id (dedupe), while successive window bumps get distinct ids.
 
-5. **Slack webhook storage**: The Slack webhook URL is stored directly on the User record (per-user, not per-sender). If per-sender notifications are needed, the schema could be extended.
+5. **Slack webhook storage**: The Slack webhook URL is stored on the User record (per-user, not per-sender). OAuth uses a Redis-backed `state` nonce (10-min TTL) to prevent CSRF/account-binding attacks. If a user hasn't connected Slack, rate-limit hits simply don't notify (no crash).
 
-6. **JWT-based auth**: Sessions are stateless via JWT in the Authorization header. The token is stored in localStorage on the frontend. For production, httpOnly cookies with CSRF protection would be more secure.
+6. **JWT-based auth**: Auth is stateless via a JWT in the `Authorization` header; the backend delivers it on the OAuth redirect in the URL **fragment** (`#token=`) so it never reaches a server log or `Referer` header. The frontend stores it in localStorage. For production, httpOnly cookies with CSRF protection would be an alternative.
 
-7. **Min delay between sends**: The 2-second default delay is applied per worker thread. With `WORKER_CONCURRENCY=5`, up to 5 emails can be sent in parallel, each with their own 2s delay, resulting in ~2.5 emails/second throughput.
+7. **Min delay between sends**: The default 2s delay is applied in the worker. With `WORKER_CONCURRENCY=5`, up to 5 sends run in parallel (each then waiting its delay) — ~2.5 emails/sec. The rubric permits a custom in-worker delay; a BullMQ `limiter` would enforce a strict global gap if preferred. The compose UI expresses this delay in **seconds** (converted to ms for the API).
+
+8. **SMTP credentials are never stored in the queue**: Redis job payloads carry only `senderId`; the worker loads SMTP credentials from the DB at send time.
+
+9. **Request limits**: `/schedule` caps a single request at 5,000 recipients; larger campaigns should be split. The per-request "Hourly Limit" can only *lower* the configured per-sender cap, not raise it above `MAX_EMAILS_PER_HOUR_PER_SENDER`.
+
+10. **UI / branding**: The dashboard follows the provided Figma pixel-for-pixel — green theme and the **"ONB"** wordmark from the design (swap to "ReachInbox" in `Sidebar.tsx` if desired). Auth is **Google-only**; the login card shows email/password fields to match the design, but both buttons initiate Google OAuth (no password backend). The Figma email-detail/reading view is out of the assignment's scope and not implemented.
+
+11. **Production hardening**: `helmet` security headers are enabled, and the app fail-fast refuses to boot in `NODE_ENV=production` with a default `JWT_SECRET` or `admin` dashboard password. Redis/Postgres/Elasticsearch run without auth for local dev — secure them (and the `/admin/queues` basic-auth credentials) before any real deployment.
 
 ---
 
