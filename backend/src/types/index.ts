@@ -3,11 +3,11 @@ export interface EmailJobData {
   recipient: string;
   subject: string;
   body: string;
+  // Non-secret: used as the From address and the rate-limit key.
   senderEmail?: string;
-  smtpUser?: string;
-  smtpPass?: string;
-  smtpHost?: string;
-  smtpPort?: number;
+  // SMTP credentials are NOT stored in the queue — the worker loads them from
+  // the DB via senderId at send time so Redis never holds plaintext passwords.
+  senderId?: string;
   userId: string;
   batchId?: string;
   maxPerHour?: number;

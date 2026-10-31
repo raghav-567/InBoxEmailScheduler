@@ -39,4 +39,22 @@ const config = {
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
 };
 
+// Fail fast on insecure defaults in production: a forgeable JWT secret or an
+// admin/admin dashboard would be a critical hole once deployed. Dev keeps the
+// convenient fallbacks above.
+if (process.env.NODE_ENV === 'production') {
+  const insecure: string[] = [];
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-super-secret-jwt-key') {
+    insecure.push('JWT_SECRET');
+  }
+  if (!process.env.BULL_BOARD_PASSWORD || process.env.BULL_BOARD_PASSWORD === 'admin') {
+    insecure.push('BULL_BOARD_PASSWORD');
+  }
+  if (insecure.length > 0) {
+    throw new Error(
+      `Refusing to start in production with insecure default(s): ${insecure.join(', ')}. Set strong values in the environment.`
+    );
+  }
+}
+
 export default config;

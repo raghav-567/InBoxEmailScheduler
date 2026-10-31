@@ -193,7 +193,7 @@ export default function ComposeModal({ isOpen, onClose, onSuccess }: ComposeModa
         scheduledAt: scheduledAt
           ? new Date(scheduledAt).toISOString()
           : new Date().toISOString(),
-        delayBetweenEmails: Math.max(0, delaySeconds) * 1000,
+        delayBetweenEmails: Math.round(Math.max(0, delaySeconds) * 1000),
         maxPerHour,
       });
       toast.success(`${new Set(all).size} email(s) scheduled successfully!`);

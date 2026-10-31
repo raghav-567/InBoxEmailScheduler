@@ -41,6 +41,14 @@ router.post('/schedule', authenticateToken, async (req: Request, res: Response) 
       return;
     }
 
+    const MAX_RECIPIENTS = 5000;
+    if (recipients.length > MAX_RECIPIENTS) {
+      res.status(400).json({
+        error: `Too many recipients in one request (max ${MAX_RECIPIENTS}). Split the batch.`,
+      });
+      return;
+    }
+
     if (!subject || !body) {
       res.status(400).json({ error: 'Subject and body are required' });
       return;
@@ -102,7 +110,6 @@ router.post('/schedule', authenticateToken, async (req: Request, res: Response) 
     const isInvalidSender = error.message === 'Selected sender was not found';
     res.status(isInvalidSender ? 404 : 500).json({
       error: isInvalidSender ? error.message : 'Failed to schedule emails',
-      details: isInvalidSender ? undefined : error.message,
     });
   }
 });

@@ -49,12 +49,8 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    if (error.code === 'P2002') {
-      res.status(409).json({ error: 'A sender with this email already exists for your account' });
-      return;
-    }
     console.error('Create sender error:', error);
-    res.status(500).json({ error: 'Failed to create sender', details: error.message });
+    res.status(500).json({ error: 'Failed to create sender' });
   }
 });
 

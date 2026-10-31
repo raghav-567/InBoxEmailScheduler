@@ -21,10 +21,7 @@ const worker = new Worker(
       subject,
       body,
       senderEmail,
-      smtpUser,
-      smtpPass,
-      smtpHost,
-      smtpPort,
+      senderId,
       userId,
       maxPerHour,
     } = job.data;
@@ -82,6 +79,22 @@ const worker = new Worker(
       where: { id: emailJobId },
       data: { status: 'SENDING' },
     });
+
+    // Load SMTP credentials from the DB at send time (they're deliberately not
+    // carried in the Redis job payload). Fall back to the configured default.
+    let smtpUser = config.SMTP_USER;
+    let smtpPass = config.SMTP_PASS;
+    let smtpHost = config.SMTP_HOST;
+    let smtpPort = config.SMTP_PORT;
+    if (senderId) {
+      const sender = await prisma.sender.findUnique({ where: { id: senderId } });
+      if (sender) {
+        smtpUser = sender.smtpUser;
+        smtpPass = sender.smtpPass;
+        smtpHost = sender.smtpHost;
+        smtpPort = sender.smtpPort;
+      }
+    }
 
     const transporter = createTransporter(smtpUser, smtpPass, smtpHost, smtpPort);
 

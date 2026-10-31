@@ -116,7 +116,10 @@ router.get('/google/callback', (req: Request, res: Response, next: NextFunction)
       { expiresIn: '7d' }
     );
 
-    res.redirect(`${config.FRONTEND_URL}/auth/callback?token=${token}`);
+    // Deliver the JWT in the URL *fragment* (#), not the query string: fragments
+    // are never sent to servers or in the Referer header and aren't written to
+    // most access logs, so the token doesn't leak on the redirect.
+    res.redirect(`${config.FRONTEND_URL}/auth/callback#token=${token}`);
   })(req, res, next);
 });
 

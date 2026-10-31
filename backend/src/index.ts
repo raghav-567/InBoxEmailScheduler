@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import passport from 'passport';
-import session from 'express-session';
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { ExpressAdapter } from '@bull-board/express';
@@ -23,6 +23,9 @@ import { reconcilePendingJobs } from './services/emailService';
 
 const app = express();
 
+// Security headers. CSP is disabled because the embedded Bull-Board dashboard
+// serves its own inline assets; everything else (HSTS, noSniff, frameguard…) applies.
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(
   cors({
     origin: config.FRONTEND_URL,
@@ -32,20 +35,9 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(
-  session({
-    secret: config.JWT_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    },
-  })
-);
+// Auth is stateless (JWT in the Authorization header); the OAuth callback uses
+// session:false — so no server-side session store is needed.
 app.use(passport.initialize());
-app.use(passport.session());
 
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath('/admin/queues');
