@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  googleId      String   @unique
+  email         String   @unique
+  name          String
+  avatar        String?
+  slackToken    String?
+  slackWebhookUrl String?
+  slackTeamName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  emailJobs     EmailJob[]
+  senders       Sender[]
+}
+
+model Sender {
+  id            String   @id @default(uuid())
+  email         String
+  smtpHost      String   @default("smtp.ethereal.email")
+  smtpPort      Int      @default(587)
+  smtpUser      String
+  smtpPass      String
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  emailJobs     EmailJob[]
+  @@unique([email, userId])
+}
+
+model EmailJob {
+  id             String      @id @default(uuid())
+  recipient      String
+  subject        String
+  body           String      @db.Text
+  scheduledAt    DateTime
+  sentAt         DateTime?
+  status         EmailStatus @default(SCHEDULED)
+  bullmqJobId    String?
+  maxPerHour     Int?
+  senderId       String?
+  sender         Sender?     @relation(fields: [senderId], references: [id])
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  batchId        String?
+  errorMessage   String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([userId])
+  @@index([batchId])
+}
+
+enum EmailStatus {
+  SCHEDULED
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+  RATE_LIMITED
+}
